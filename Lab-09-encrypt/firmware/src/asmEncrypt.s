@@ -10,7 +10,7 @@
 .type nameStr,%gnu_unique_object
     
 /*** STUDENTS: Change the next line to your name!  **/
-nameStr: .asciz "Inigo Montoya"  
+nameStr: .asciz "Javier Ayala"  
 .align
  
 /* initialize a global variable that C can access to print the nameStr */
@@ -89,9 +89,88 @@ asmEncrypt:
     push {r4-r11,LR}
     
     /* YOUR asmEncrypt CODE BELOW THIS LINE! VVVVVVVVVVVVVVVVVVVVV  */
+     // Load the address of cipherText (destination buffer) into r2
+    ldr r2, =cipherText
+    // Copy the input string address (plaintext) from r0 into r3 so we don't modify r0
+    mov r3, r0
 
+encrypt_loop:
+    // Load the next character (byte) from the plaintext string and post-increment r3
+    ldrb r4, [r3], #1
+    // Check if the current character is the null terminator (end of string)
+    cmp r4, #0
+    // If it's the end, branch to encrypt_done to terminate the cipherText
+    beq encrypt_done
 
+    // Check if the character is before 'A' (non-uppercase letter)
+    cmp r4, #'A'
+    blt copy_char
+    // If it's between 'A' and 'Z', handle uppercase shifting
+    cmp r4, #'Z'
+    ble shift_uppercase
 
+    // Check if the character is before 'a' (non-lowercase letter)
+    cmp r4, #'a'
+    blt copy_char
+    // If it's between 'a' and 'z', handle lowercase shifting
+    cmp r4, #'z'
+    ble shift_lowercase
+
+copy_char:
+    // For non-letter characters (symbols, numbers, etc.), copy them unchanged
+    strb r4, [r2], #1
+    // Go back to process the next character
+    b encrypt_loop
+
+shift_uppercase:
+    // Shift the uppercase letter into a 0-25 range relative to 'A'
+    sub r5, r4, #'A'      
+    // Apply the cipher shift (key stored in r1)
+    add r5, r5, r1        
+    // Update condition flags to check for possible underflow
+    movs r5, r5
+    // If underflow occurred (r5 negative), wrap it by adding 26
+    bge no_underflow_upper
+    add r5, r5, #26
+no_underflow_upper:
+    // If after adding key, r5 is 26 or more, wrap back within [0, 25] range
+    cmp r5, #26
+    blt no_wrap_upper
+    sub r5, r5, #26
+no_wrap_upper:
+    // Convert back from 0-25 range to actual ASCII uppercase letter
+    add r5, r5, #'A'
+    // Store the encrypted character and increment output pointer
+    strb r5, [r2], #1
+    // Continue with next character
+    b encrypt_loop
+
+shift_lowercase:
+    //Shift the lowercase letter into a 0-25 range relative to 'a'
+    sub r5, r4, #'a'
+    // Apply the cipher shift
+    add r5, r5, r1
+    // if after shifting it stays within [0, 25], no wrap needed
+    cmp r5, #26
+    blt no_wrap_lower
+    // If it exceeds, subtract 26 to wrap around alphabetically
+    sub r5, r5, #26    
+
+no_wrap_lower:
+    // Convert back from 0-25 range to actual ASCII lowercase letter
+    add r5, r5, #'a'
+    // Store the encrypted lowercase letter
+    strb r5, [r2], #1
+    // Continue with next character
+    b encrypt_loop
+
+encrypt_done:
+    // Store null terminator at the end of cipherText string
+    movs r4, #0
+    strb r4, [r2]
+
+    // Return cipherText address in r0 for caller convenience
+    ldr r0, =cipherText
     
     /* YOUR asmEncrypt CODE ABOVE THIS LINE! ^^^^^^^^^^^^^^^^^^^^^  */
 
